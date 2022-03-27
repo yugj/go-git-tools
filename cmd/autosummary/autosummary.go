@@ -1,31 +1,32 @@
-package main
+package autosummary
 
 import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"strings"
 )
 
-var SideBar string
-
 const readme = "readme.md"
-const output  = ""
+const output = "_sidebar.md"
 
-// @author yugj
-func main() {
-
-	var base = "/Users/yugj/mdev/yugj/blog"
+func Generate(base string) {
 
 	summary := manager{}
+	summary.basePath = base
+
 	ignoredFiles := summary.ignoredFiles()
 
-	dirs, err := ioutil.ReadDir(base)
-	if err != nil {
-		log.Fatal(err)
+	containsTarget := summary.containsTarget(base)
+	if !containsTarget {
+		log.Println("target file not exists")
+		return
 	}
 
-	SideBar += "- BLOG\n"
+	dirs, _ := ioutil.ReadDir(base)
+
+	summary.content += "- BLOG\n"
 
 	for _, dir := range dirs {
 
@@ -48,18 +49,48 @@ func main() {
 				continue
 			}
 			secondCategory := summary.buildCategory(base, dir.Name(), child.Name())
-			summary.appendLine("    ",secondCategory)
+			summary.appendLine("    ", secondCategory)
 		}
 	}
 
-	fmt.Println(SideBar)
+	fmt.Println(summary.content)
+	summary.writeTarget()
+
+	log.Println("auto generate summary success")
 }
 
 type manager struct {
+	content  string
+	basePath string
+}
+
+func (s *manager) writeTarget() {
+
+	sideBarPath := s.basePath + "/" + output
+	file, _ := os.Create(sideBarPath)
+	_, err := file.WriteString(s.content)
+	if err != nil {
+		log.Println(err)
+		_ = file.Close()
+	}
 
 }
 
-func (*manager) buildCategory(basePath, dirname, filename string) string{
+func (*manager) containsTarget(basePath string) bool {
+	dirs, err := ioutil.ReadDir(basePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, dir := range dirs {
+		if dir.Name() == output {
+			return true
+		}
+	}
+	return false
+}
+
+func (*manager) buildCategory(basePath, dirname, filename string) string {
 	readme := basePath + "/" + dirname + "/" + filename
 	title := getMdTitle(readme)
 
@@ -67,7 +98,7 @@ func (*manager) buildCategory(basePath, dirname, filename string) string{
 		title = dirname
 	}
 
-	return "- [" + title + "]" + "(/" + dirname + "/" + filename +   ")"
+	return "- [" + title + "]" + "(/" + dirname + "/" + filename + ")"
 }
 
 func getMdTitle(filePath string) string {
@@ -83,19 +114,18 @@ func getMdTitle(filePath string) string {
 	return strings.ReplaceAll(firstLine, "# ", "")
 }
 
-func (*manager) appendLine(tab string, line string) {
-	SideBar += tab + line + "\n"
+func (m *manager) appendLine(tab string, line string) {
+	m.content += tab + line + "\n"
 }
 
 func (*manager) ignoredFiles() map[string]string {
+	ignores := ".git,.gitignore,.idea,README.md,_404.md,_coverpage.md,_sidebar.md,index.html"
+	ignoresArray := strings.Split(ignores, ",")
+
 	ignoredFiles := make(map[string]string)
-	ignoredFiles[".git"] = "1"
-	ignoredFiles[".gitignore"] = "1"
-	ignoredFiles[".idea"] = "1"
-	ignoredFiles["readme.md"] = "1"
-	ignoredFiles["_404.md"] = "1"
-	ignoredFiles["_coverpage.md"] = "1"
-	ignoredFiles["_sidebar.md"] = "1"
-	ignoredFiles["index.html"] = "1"
+	for i := range ignoresArray {
+		ignoredFiles[ignoresArray[i]] = "1"
+	}
+
 	return ignoredFiles
 }

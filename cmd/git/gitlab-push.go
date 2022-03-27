@@ -1,4 +1,4 @@
-package main
+package git
 
 import (
 	"log"
@@ -6,8 +6,7 @@ import (
 	"os/exec"
 )
 
-func main() {
-
+func Execute()  {
 	msg := ""
 	for i, v := range os.Args {
 
